@@ -1,0 +1,137 @@
+:root {
+  --bg: #eef2f7;
+  --panel: #ffffff;
+  --panel-2: #ecf5ff;
+  --text: #10243e;
+  --muted: #5d728a;
+  --line: #d7e0ea;
+  --accent: #0f7bff;
+  --danger: #d64545;
+  --success: #1b9c68;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, #ffffff 0%, transparent 26%),
+    linear-gradient(135deg, #eaf3ff 0%, #f6f8fb 55%, #eef2f7 100%);
+  color: var(--text);
+  font-family: "Yu Gothic UI", "Segoe UI", sans-serif;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  padding: 28px;
+  border-right: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.content {
+  padding: 28px;
+  display: grid;
+  gap: 20px;
+}
+
+.subtitle,
+.muted {
+  color: var(--muted);
+}
+
+.target-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.target-item,
+.status-card,
+.chart-card,
+.table-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(16, 36, 62, 0.06);
+}
+
+.target-item {
+  width: 100%;
+  text-align: left;
+  padding: 16px;
+  cursor: pointer;
+}
+
+.target-item.active {
+  background: var(--panel-2);
+  border-color: #afd1ff;
+}
+
+.status-card {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: start;
+}
+
+.summary {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.chart-card,
+.table-card {
+  padding: 20px;
+}
+
+.chart-card {
+  min-height: 340px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font-size: 14px;
+}
+
+.status-success {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.status-failed {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .status-card {
+    flex-direction: column;
+  }
+}

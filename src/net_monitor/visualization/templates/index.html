@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>net-monitor-mini</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <main class="layout">
+    <section class="sidebar">
+      <h1>Net Monitor</h1>
+      <p class="subtitle">Ping 監視ダッシュボード</p>
+      <div id="target-list" class="target-list"></div>
+    </section>
+    <section class="content">
+      <div class="status-card">
+        <div>
+          <h2 id="target-name">対象を選択してください</h2>
+          <p id="target-address" class="muted"></p>
+        </div>
+        <div id="summary" class="summary"></div>
+      </div>
+      <div class="chart-card">
+        <canvas id="latency-chart"></canvas>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>時刻</th>
+              <th>試行</th>
+              <th>結果</th>
+              <th>応答時間(ms)</th>
+              <th>状態</th>
+            </tr>
+          </thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
