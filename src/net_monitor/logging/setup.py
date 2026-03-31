@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 
 
@@ -13,7 +14,7 @@ def configure_logging(log_file_path: str, log_level: str) -> None:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
         handlers=[
             logging.FileHandler(log_path, encoding="utf-8"),
-            logging.StreamHandler(),
+            logging.StreamHandler(sys.__stderr__),
         ],
         force=True,
     )

@@ -36,3 +36,20 @@ def test_load_config_resolves_relative_paths(tmp_path: Path) -> None:
 
     assert config.storage.database_path == str((project_root / "data" / "app.db").resolve())
     assert config.logging.file_path == str((project_root / "logs" / "app.log").resolve())
+
+
+def test_default_config_contains_nine_targets_with_labels() -> None:
+    config = load_app_config(Path("config/appsettings.json").resolve())
+
+    assert len(config.targets) == 9
+    assert [(target.name, target.address) for target in config.targets] == [
+        ("Local Gateway", "192.168.1.1"),
+        ("haneda", "192.168.100.1"),
+        ("okinawa", "192.168.104.11"),
+        ("shibuya", "10.0.16.1"),
+        ("tatsumi", "192.168.9.1"),
+        ("narita", "192.168.3.1"),
+        ("prologi", "192.168.8.1"),
+        ("osaka", "192.168.5.1"),
+        ("osaka2", "192.168.7.1"),
+    ]

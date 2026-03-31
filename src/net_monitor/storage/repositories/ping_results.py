@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import sessionmaker
 
@@ -36,15 +38,26 @@ class PingResultRepository:
                 )
             session.commit()
 
-    def list_results(self, target_id: str, limit: int = 200) -> list[dict]:
+    def list_results(
+        self,
+        target_id: str,
+        limit: int | None = 200,
+        days: int | None = None,
+    ) -> list[dict]:
         with self._session_factory() as session:
-            rows = session.execute(
+            query = (
                 select(PingResultRecord)
                 .join(MonitorTargetRecord, PingResultRecord.target_id == MonitorTargetRecord.id)
                 .where(MonitorTargetRecord.target_key == target_id)
                 .order_by(desc(PingResultRecord.measured_at))
-                .limit(limit)
-            ).scalars().all()
+            )
+            if days is not None:
+                since = datetime.now(timezone.utc) - timedelta(days=days)
+                query = query.where(PingResultRecord.measured_at >= since)
+            if limit is not None:
+                query = query.limit(limit)
+
+            rows = session.execute(query).scalars().all()
             return [
                 {
                     "cycle_id": row.cycle_id,

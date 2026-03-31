@@ -18,12 +18,13 @@ def get_targets(request: Request) -> list[dict]:
 def get_target_results(
     target_id: str,
     request: Request,
-    limit: int = Query(default=200, ge=1, le=5000),
+    limit: int = Query(default=200, ge=1, le=10000),
+    days: int | None = Query(default=None, ge=1, le=30),
 ) -> dict:
     repository = PingResultRepository(request.app.state.session_factory)
     return {
         "target_id": target_id,
-        "results": repository.list_results(target_id=target_id, limit=limit),
+        "results": repository.list_results(target_id=target_id, limit=limit, days=days),
     }
 
 

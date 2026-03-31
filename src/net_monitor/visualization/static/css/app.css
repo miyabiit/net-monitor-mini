@@ -98,6 +98,77 @@ body {
   min-height: 340px;
 }
 
+.chart-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+}
+
+.chart-inner {
+  min-width: 100%;
+}
+
+#latency-chart {
+  display: block;
+  min-height: 300px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.chart-header h3 {
+  margin: 0 0 4px;
+}
+
+.chart-header p {
+  margin: 0;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.legend-dot-success {
+  background: var(--accent);
+}
+
+.legend-dot-failed {
+  background: var(--danger);
+}
+
+.legend-line {
+  width: 18px;
+  height: 0;
+  border-top: 2px solid currentColor;
+  display: inline-block;
+}
+
+.legend-line-average {
+  color: #5b7cff;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -132,6 +203,10 @@ td {
   }
 
   .status-card {
+    flex-direction: column;
+  }
+
+  .chart-header {
     flex-direction: column;
   }
 }

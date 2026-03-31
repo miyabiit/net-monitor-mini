@@ -59,4 +59,4 @@ class MonitorScheduler:
 
     def shutdown(self) -> None:
         if self._scheduler.running:
-            self._scheduler.shutdown(wait=False)
+            self._scheduler.shutdown(wait=True)

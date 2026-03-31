@@ -22,7 +22,22 @@
         <div id="summary" class="summary"></div>
       </div>
       <div class="chart-card">
-        <canvas id="latency-chart"></canvas>
+        <div class="chart-header">
+          <div>
+            <h3>応答時間推移</h3>
+            <p class="muted">X 軸: 日時 / Y 軸: 応答時間(ms)</p>
+          </div>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-dot legend-dot-success"></span>成功</span>
+            <span class="legend-item"><span class="legend-dot legend-dot-failed"></span>失敗</span>
+            <span class="legend-item"><span class="legend-line legend-line-average"></span>サイクル平均</span>
+          </div>
+        </div>
+        <div id="chart-scroll" class="chart-scroll">
+          <div class="chart-inner">
+            <canvas id="latency-chart"></canvas>
+          </div>
+        </div>
       </div>
       <div class="table-card">
         <table>

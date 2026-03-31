@@ -174,6 +174,7 @@ net-monitor-mini/
   - 監視対象一覧取得
 - `GET /api/targets/{target_id}/results`
   - 指定対象の監視結果取得
+  - `days` による期間指定と `limit` による件数上限指定を受け付ける
 - `GET /api/targets/{target_id}/summary`
   - 直近状態や成功率の簡易集計取得
 - `GET /health`
@@ -205,6 +206,7 @@ net-monitor-mini/
 - 選択対象の最新状態表示
 - 応答時間推移グラフ
 - 成功/失敗の状態表示
+- グラフは直近 1 週間を初期表示し、X 軸は `dd HH` 表示とする
 
 ### 10.2 UI 実装方針
 - 初期版はサーバサイド配信する単純な Web UI とする

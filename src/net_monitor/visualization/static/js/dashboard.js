@@ -1,6 +1,13 @@
 let selectedTargetId = null;
 let refreshTimerId = null;
 
+const GRAPH_LOOKBACK_DAYS = 7;
+const GRAPH_LIMIT = 10000;
+const TABLE_LIMIT = 100;
+const GRAPH_WINDOW_HOURS = 96;
+const GRAPH_WINDOW_BACK_HOURS = 72;
+const GRAPH_TICK_HOURS = 2;
+
 async function fetchJson(url) {
   const response = await fetch(url);
   if (!response.ok) {
@@ -41,6 +48,7 @@ function renderSummary(target, summary) {
     <div><strong>成功率:</strong> ${summary.success_rate === null ? "-" : summary.success_rate.toFixed(1) + "%"}</div>
     <div><strong>平均応答:</strong> ${summary.average_latency_ms === null ? "-" : summary.average_latency_ms.toFixed(1) + " ms"}</div>
     <div><strong>保存件数:</strong> ${summary.total_count}</div>
+    <div><strong>グラフ範囲:</strong> 最新時刻基準の ${GRAPH_WINDOW_HOURS / 24} 日</div>
   `;
 }
 
@@ -62,11 +70,18 @@ function renderTable(results) {
 
 function renderChart(results) {
   const canvas = document.getElementById("latency-chart");
+  const scrollContainer = document.getElementById("chart-scroll");
   const context = canvas.getContext("2d");
-  const rect = canvas.getBoundingClientRect();
-  const width = Math.max(Math.floor(rect.width), 300);
-  const height = Math.max(Math.floor(rect.height), 240);
-  const padding = 28;
+  const availableWidth = Math.max(Math.floor(scrollContainer.clientWidth), 300);
+  const height = 300;
+  const padding = { top: 24, right: 24, bottom: 86, left: 68 };
+  const latestTime = results.length
+    ? Math.max(...results.map((item) => new Date(item.measured_at).getTime()))
+    : null;
+  const chartWidth = latestTime === null
+    ? availableWidth
+    : calculateChartWidth(latestTime, availableWidth, padding);
+  const width = Math.max(chartWidth, 300);
 
   canvas.width = width;
   canvas.height = height;
@@ -78,46 +93,39 @@ function renderChart(results) {
   if (!results.length) {
     context.fillStyle = "#5d728a";
     context.font = "14px sans-serif";
-    context.fillText("表示できるデータがありません。", padding, height / 2);
+    context.fillText("表示できるデータがありません。", padding.left, height / 2);
     return;
   }
 
-  const values = results.map((item) => item.latency_ms).filter((item) => item !== null);
+  const timestamps = results.map((item) => new Date(item.measured_at).getTime());
+  const xAxisStart = getWindowStartTime(latestTime);
+  const xAxisEnd = getWindowEndTime(xAxisStart);
+  const visibleResults = results.filter((item) => {
+    const time = new Date(item.measured_at).getTime();
+    return time >= xAxisStart && time <= xAxisEnd;
+  });
+  const visibleTimestamps = visibleResults.map((item) => new Date(item.measured_at).getTime());
+  const values = visibleResults.map((item) => item.latency_ms).filter((item) => item !== null);
   const maxValue = Math.max(...values, 1);
-  const plotWidth = width - padding * 2;
-  const plotHeight = height - padding * 2;
+  const cycleSummaries = buildCycleSummaries(visibleResults);
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
 
   context.strokeStyle = "#d7e0ea";
   context.lineWidth = 1;
-  context.beginPath();
-  context.moveTo(padding, padding);
-  context.lineTo(padding, height - padding);
-  context.lineTo(width - padding, height - padding);
-  context.stroke();
 
-  context.strokeStyle = "#0f7bff";
-  context.lineWidth = 2;
-  context.beginPath();
+  drawChartAxes(context, width, height, padding);
+  drawYAxis(context, width, height, padding, maxValue, plotHeight);
+  drawXAxis(context, width, height, padding, xAxisStart, xAxisEnd, plotWidth);
+  drawAxisTitles(context, width, height, padding);
 
-  results.forEach((result, index) => {
-    if (result.latency_ms === null) {
-      return;
-    }
-    const x = padding + (plotWidth * index) / Math.max(results.length - 1, 1);
-    const y = height - padding - (result.latency_ms / maxValue) * plotHeight;
-    if (index === 0 || results[index - 1].latency_ms === null) {
-      context.moveTo(x, y);
-    } else {
-      context.lineTo(x, y);
-    }
-  });
-  context.stroke();
+  drawAverageLine(context, cycleSummaries, xAxisStart, xAxisEnd, padding.left, plotWidth, maxValue, height, padding.bottom, plotHeight);
 
-  results.forEach((result, index) => {
-    const x = padding + (plotWidth * index) / Math.max(results.length - 1, 1);
+  visibleResults.forEach((result, index) => {
+    const x = getXPosition(visibleTimestamps[index], xAxisStart, xAxisEnd, padding.left, plotWidth);
     const y = result.latency_ms === null
-      ? height - padding
-      : height - padding - (result.latency_ms / maxValue) * plotHeight;
+      ? height - padding.bottom
+      : getYPosition(result.latency_ms, maxValue, height, padding.bottom, plotHeight);
     context.fillStyle = result.success ? "#0f7bff" : "#d64545";
     context.beginPath();
     context.arc(x, y, 4, 0, Math.PI * 2);
@@ -126,7 +134,195 @@ function renderChart(results) {
 
   context.fillStyle = "#5d728a";
   context.font = "12px sans-serif";
-  context.fillText(`max ${maxValue.toFixed(1)} ms`, padding, padding - 8);
+  context.textAlign = "left";
+  context.fillText(`max ${maxValue.toFixed(1)} ms`, padding.left, padding.top - 8);
+
+  scrollChartToLatest(scrollContainer);
+}
+
+function drawChartAxes(context, width, height, padding) {
+  context.beginPath();
+  context.moveTo(padding.left, padding.top);
+  context.lineTo(padding.left, height - padding.bottom);
+  context.lineTo(width - padding.right, height - padding.bottom);
+  context.stroke();
+}
+
+function drawYAxis(context, width, height, padding, maxValue, plotHeight) {
+  const tickCount = 4;
+  context.font = "11px sans-serif";
+  context.fillStyle = "#5d728a";
+  context.textAlign = "right";
+  context.textBaseline = "middle";
+
+  for (let index = 0; index <= tickCount; index += 1) {
+    const ratio = index / tickCount;
+    const value = maxValue * (1 - ratio);
+    const y = padding.top + plotHeight * ratio;
+
+    context.strokeStyle = "#eef3f7";
+    context.beginPath();
+    context.moveTo(padding.left, y);
+    context.lineTo(width - padding.right, y);
+    context.stroke();
+
+    context.fillText(value.toFixed(0), padding.left - 8, y);
+  }
+}
+
+function drawXAxis(context, width, height, padding, minTime, maxTime, plotWidth) {
+  context.font = "11px sans-serif";
+  context.fillStyle = "#5d728a";
+  context.textAlign = "center";
+  context.textBaseline = "top";
+  const ticks = buildHourlyTicks(minTime, maxTime);
+
+  ticks.forEach((time) => {
+    const x = getXPosition(time, minTime, maxTime, padding.left, plotWidth);
+
+    context.strokeStyle = isMidnightTick(time) ? "#d7e0ea" : "#eef3f7";
+    context.beginPath();
+    context.moveTo(x, padding.top);
+    context.lineTo(x, height - padding.bottom);
+    context.stroke();
+
+    if (isMidnightTick(time)) {
+      drawMidnightXAxisLabel(context, x, height - padding.bottom + 8, time);
+    }
+  });
+}
+
+function drawAxisTitles(context, width, height, padding) {
+  context.fillStyle = "#5d728a";
+  context.font = "12px sans-serif";
+
+  context.textAlign = "center";
+  context.textBaseline = "top";
+  context.fillText("日時", (padding.left + width - padding.right) / 2, height - 20);
+
+  context.save();
+  context.translate(18, (padding.top + height - padding.bottom) / 2);
+  context.rotate(-Math.PI / 2);
+  context.textAlign = "center";
+  context.textBaseline = "top";
+  context.fillText("応答時間 (ms)", 0, 0);
+  context.restore();
+}
+
+function getXPosition(timestamp, minTime, maxTime, left, plotWidth) {
+  if (maxTime === minTime) {
+    return left + plotWidth / 2;
+  }
+  return left + ((timestamp - minTime) / (maxTime - minTime)) * plotWidth;
+}
+
+function getYPosition(value, maxValue, height, bottom, plotHeight) {
+  return height - bottom - (value / maxValue) * plotHeight;
+}
+
+function formatAxisDate(timestamp) {
+  const date = new Date(timestamp);
+  const day = String(date.getDate()).padStart(2, "0");
+  return {
+    day
+  };
+}
+
+function drawMidnightXAxisLabel(context, x, y, timestamp) {
+  const label = formatAxisDate(timestamp);
+  context.font = "12px sans-serif";
+  context.fillText(label.day, x, y);
+  context.font = "11px sans-serif";
+}
+
+function buildHourlyTicks(minTime, maxTime) {
+  const ticks = [];
+  let current = minTime;
+  while (current <= maxTime) {
+    ticks.push(current);
+    current += GRAPH_TICK_HOURS * 60 * 60 * 1000;
+  }
+  if (ticks[ticks.length - 1] !== maxTime) {
+    ticks.push(maxTime);
+  }
+  return ticks;
+}
+
+function calculateChartWidth(latestTime, availableWidth, padding) {
+  return availableWidth;
+}
+
+function buildCycleSummaries(results) {
+  const cycles = new Map();
+
+  results.forEach((result) => {
+    if (!cycles.has(result.cycle_id)) {
+      cycles.set(result.cycle_id, {
+        timestamp: new Date(result.measured_at).getTime(),
+        values: []
+      });
+    }
+    if (result.latency_ms !== null) {
+      cycles.get(result.cycle_id).values.push(result.latency_ms);
+    }
+  });
+
+  return [...cycles.values()]
+    .map((cycle) => ({
+      timestamp: cycle.timestamp,
+      averageLatency: cycle.values.length
+        ? cycle.values.reduce((sum, value) => sum + value, 0) / cycle.values.length
+        : null
+    }))
+    .sort((left, right) => left.timestamp - right.timestamp);
+}
+
+function drawAverageLine(context, cycleSummaries, minTime, maxTime, left, plotWidth, maxValue, height, bottom, plotHeight) {
+  context.strokeStyle = "#5b7cff";
+  context.lineWidth = 2;
+  context.beginPath();
+
+  let started = false;
+  cycleSummaries.forEach((cycle) => {
+    if (cycle.averageLatency === null) {
+      started = false;
+      return;
+    }
+
+    const x = getXPosition(cycle.timestamp, minTime, maxTime, left, plotWidth);
+    const y = getYPosition(cycle.averageLatency, maxValue, height, bottom, plotHeight);
+    if (!started) {
+      context.moveTo(x, y);
+      started = true;
+    } else {
+      context.lineTo(x, y);
+    }
+  });
+
+  context.stroke();
+}
+
+function getWindowStartTime(timestamp) {
+  const date = new Date(timestamp);
+  date.setMinutes(0, 0, 0);
+  date.setHours(date.getHours() - GRAPH_WINDOW_BACK_HOURS);
+  return date.getTime();
+}
+
+function getWindowEndTime(startTime) {
+  return startTime + GRAPH_WINDOW_HOURS * 60 * 60 * 1000;
+}
+
+function isMidnightTick(timestamp) {
+  const date = new Date(timestamp);
+  return date.getHours() === 0;
+}
+
+function scrollChartToLatest(scrollContainer) {
+  const maxScrollLeft = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+  if (maxScrollLeft > 0) {
+    scrollContainer.scrollLeft = maxScrollLeft;
+  }
 }
 
 async function selectTarget(targetId) {
@@ -135,14 +331,15 @@ async function selectTarget(targetId) {
   renderTargets(targets);
 
   const target = targets.find((item) => item.id === targetId);
-  const [resultsPayload, summary] = await Promise.all([
-    fetchJson(`/api/targets/${targetId}/results?limit=50`),
+  const [graphPayload, tablePayload, summary] = await Promise.all([
+    fetchJson(`/api/targets/${targetId}/results?days=${GRAPH_LOOKBACK_DAYS}&limit=${GRAPH_LIMIT}`),
+    fetchJson(`/api/targets/${targetId}/results?limit=${TABLE_LIMIT}`),
     fetchJson(`/api/targets/${targetId}/summary`)
   ]);
 
   renderSummary(target, summary);
-  renderTable(resultsPayload.results);
-  renderChart(resultsPayload.results);
+  renderTable(tablePayload.results);
+  renderChart(graphPayload.results);
 }
 
 async function initializeDashboard() {
